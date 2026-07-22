@@ -1,1 +1,110 @@
+clear all;
+clc;
+close all;
+
+% Parámetros de simulación y del robot
+ts = 20;        % Tiempo de simulación [s]
+ti = 0.01;      % Tiempo de integración [s]
+t = 0:ti:ts;    % Vector de tiempo
+L = 0.18;       % Distancia entre ruedas [m]
+r = 0.03;       % Radio de las ruedas [m]
+
+% 1. TRAYECTORIA CIRCULAR DESEADA
+R_c = 1.0;          % Radio de la trayectoria circular [m]
+w_path = 0.5;       % Velocidad angular de la trayectoria [rad/s]
+
+% Ecuaciones paramétricas de la trayectoria deseada
+x_d = R_c * sin(w_path * t);
+y_d = R_c * (1 - cos(w_path * t));
+theta_d = w_path * t + pi/2; % Orientación deseada
+
+% 2. CINEMÁTICA INVERSA (Cálculo de u y w necesarios)
+u_des = R_c * w_path * ones(size(t)); % Velocidad lineal constante
+w_des = w_path * ones(size(t));     % Velocidad angular constante
+
+% Velocidades lineales de las ruedas [m/s]
+VRD = u_des + (L/2) * w_des;
+VRI = u_des - (L/2) * w_des;
+
+% Velocidades angulares de las ruedas [\dot{\theta}_D y \dot{\theta}_I] en [rad/s]
+theta_dot_D = VRD / r;
+theta_dot_I = VRI / r;
+
+% 3. SIMULACIÓN DEL ROBOT (Cinemática directa aplicando u_des y w_des)
+x = zeros(1, length(t));
+y = zeros(1, length(t));
+theta = zeros(1, length(t));
+
+x(1) = 0;
+y(1) = 0;
+theta(1) = pi/2; % Orientación inicial alineada con la trayectoria deseada
+
+for k = 1:length(t)-1
+    x(k+1) = x(k) + ti * (u_des(k) * cos(theta(k)));
+    y(k+1) = y(k) + ti * (u_des(k) * sin(theta(k)));
+    theta(k+1) = theta(k) + ti * w_des(k);
+end
+
+% =========================================================================
+% GENERACIÓN, VISUALIZACIÓN Y GUARDADO DE GRÁFICAS
+% =========================================================================
+
+% 1. Trayectoria deseada -> trayectoria_deseada.png
+figure('Name', 'Trayectoria Deseada');
+plot(x_d, y_d, 'b--', 'LineWidth', 2);
+grid on;
+xlabel("POSICIÓN EN X [m]"); ylabel("POSICIÓN EN Y [m]");
+title("TRAYECTORIA DESEADA (CIRCULAR)");
+axis equal;
+saveas(gcf, 'trayectoria_deseada.png');
+
+% 2. Trayectoria obtenida -> trayectoria_obtenida.png
+figure('Name', 'Trayectoria Obtenida');
+plot(x, y, 'r-', 'LineWidth', 2);
+grid on;
+xlabel("POSICIÓN EN X [m]"); ylabel("POSICIÓN EN Y [m]");
+title("TRAYECTORIA OBTENIDA POR EL ROBOT");
+axis equal;
+saveas(gcf, 'trayectoria_obtenida.png');
+
+% 3. Comparación de trayectorias -> comparacion_trayectorias.png
+figure('Name', 'Comparación de Trayectorias');
+plot(x_d, y_d, 'b--', 'LineWidth', 2); hold on;
+plot(x, y, 'r-', 'LineWidth', 2);
+grid on;
+legend('Deseada', 'Obtenida', 'Location', 'Best');
+xlabel("POSICIÓN EN X [m]"); ylabel("POSICIÓN EN Y [m]");
+title("COMPARACIÓN DE TRAYECTORIAS");
+axis equal;
+saveas(gcf, 'comparacion_trayectorias.png');
+
+% 4. Velocidad lineal -> velocidad_lineal.png
+figure('Name', 'Velocidad Lineal');
+plot(t, u_des, 'k-', 'LineWidth', 2);
+grid on;
+xlabel("Tiempo [s]"); ylabel("Velocidad lineal u [m/s]");
+title("VELOCIDAD LINEAL");
+ylim([0, max(u_des)*1.5]); % Ajuste de escala para mejor visualización
+saveas(gcf, 'velocidad_lineal.png');
+
+% 5. Velocidad angular -> velocidad_angular.png
+figure('Name', 'Velocidad Angular');
+plot(t, w_des, 'm-', 'LineWidth', 2);
+grid on;
+xlabel("Tiempo [s]"); ylabel("Velocidad angular w [rad/s]");
+title("VELOCIDAD ANGULAR");
+ylim([0, max(w_des)*1.5]); % Ajuste de escala para mejor visualización
+saveas(gcf, 'velocidad_angular.png');
+
+% 6. Velocidades de ruedas -> velocidades_ruedas.png
+figure('Name', 'Velocidades de las Ruedas');
+plot(t, theta_dot_D, 'g-', 'LineWidth', 1.5); hold on;
+plot(t, theta_dot_I, 'b-', 'LineWidth', 1.5);
+grid on;
+legend('\dot{\theta}_D (Rueda Der)', '\dot{\theta}_I (Rueda Izq)', 'Location', 'Best');
+xlabel("Tiempo [s]"); ylabel("Velocidad angular de ruedas [rad/s]");
+title("VELOCIDADES DE LAS RUEDAS");
+ylim([min(theta_dot_I)*0.8, max(theta_dot_D)*1.2]); % Ajuste de escala
+saveas(gcf, 'velocidades_ruedas.png');
+
 
