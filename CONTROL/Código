@@ -1,1 +1,316 @@
+clear all; clc; close all;
+% CONTROL CINEMATICO DE UN ROBOT DIFERENCIAL
+% El robot debe llegar a una posicion deseada [xd, yd]
 
+% TIEMPO DE SIMULACION
+ts = 10;          % tiempo total [s]
+ti = 0.01;        % paso de integracion [s]
+t = 0:ti:ts;
+
+% PARAMETROS DEL ROBOT
+L = 0.18;         % distancia entre ruedas [m]
+r = 0.03;         % radio de ruedas [m]
+
+% CONDICIONES INICIALES - ROBOT CON SATURACIÓN
+x(1) = 0;         % posicion inicial X [m]
+y(1) = 0;         % posicion inicial Y [m]
+theta(1) = 0;     % orientacion inicial [rad]
+
+% CONDICIONES INICIALES - ROBOT SIN SATURACIÓN (IDEAL)
+x_id(1) = 0;      
+y_id(1) = 0;      
+theta_id(1) = 0;  
+
+% POSICION DESEADA
+xd = 3;           % meta en X [m]
+yd = 5;           % meta en Y [m]
+
+% GANANCIAS DEL CONTROLADOR
+k_rho = 1;      % ganancia de avance
+k_theta = 3;    % ganancia de giro
+
+% INICIALIZACION DE VARIABLES
+rho = zeros(1,length(t));
+e_theta = zeros(1,length(t));
+u = zeros(1,length(t));
+w = zeros(1,length(t));
+u_real =  zeros(1,length(t));
+w_real =  zeros(1,length(t));
+vD = zeros(1,length(t));
+vI = zeros(1,length(t));
+thetaDot_D = zeros(1,length(t));
+thetaDot_I = zeros(1,length(t));
+thetaDot_D_sat = zeros(1,length(t));
+thetaDot_I_sat = zeros(1,length(t));
+
+% SIMULACION
+for k = 1:length(t)-1
+    
+    % 1. CÁLCULOS DEL ROBOT REAL (CON SATURACIÓN)
+
+% ERRORES DE POSICION
+    ex = xd - x(k);
+    ey = yd - y(k);
+    % Distancia hacia la meta
+    rho(k) = sqrt(ex^2 + ey^2);
+    % Angulo deseado hacia la meta
+    theta_d = atan2(ey,ex);
+    % Error angular normalizado
+    e_theta(k) = atan2(sin(theta_d - theta(k)), cos(theta_d - theta(k)));
+    
+    % CONTROL CINEMATICO
+    u(k) = k_rho*rho(k);
+    w(k) = k_theta*e_theta(k);
+    
+    % Detener si llega cerca de la meta
+    if rho(k) < 0.05
+        u(k) = 0;
+        w(k) = 0;
+    end
+
+    % Cinematica inversa: velocidades de las ruedas
+    thetaDot_D(k) = (u(k) + (L/2)*w(k))/r;
+    thetaDot_I(k) = (u(k) - (L/2)*w(k))/r;
+    thetaDot_max = 30;   % Velocidad angular maxima [rad/s]
+    
+    % Saturacion proporcional
+    valor_maximo(k) = max(abs([thetaDot_D(k), thetaDot_I(k)]));
+    if valor_maximo(k) > thetaDot_max
+        alpha = thetaDot_max/valor_maximo(k);
+        thetaDot_D_sat(k) = alpha*thetaDot_D(k);
+        thetaDot_I_sat(k) = alpha*thetaDot_I(k);
+    else
+        thetaDot_D_sat(k) = thetaDot_D(k);
+        thetaDot_I_sat(k) = thetaDot_I(k);
+    end
+    
+    % Velocidades reales del robot despues de saturar
+    u_real(k) = (r/2)*(thetaDot_D_sat(k) + thetaDot_I_sat(k));
+    w_real(k) = (r/L)*(thetaDot_D_sat(k) - thetaDot_I_sat(k));
+    
+    % ACTUALIZACIÓN DE ESTADOS (Robot saturado)
+    x(k+1) = x(k) + u_real(k)*cos(theta(k))*ti;
+    y(k+1) = y(k) + u_real(k)*sin(theta(k))*ti;
+    theta(k+1) = theta(k) + w_real(k)*ti;
+
+
+  % 2. CÁLCULOS DEL ROBOT IDEAL (SIN SATURACIÓN)
+
+  % Errores de posicion
+    ex_id = xd - x_id(k);
+    ey_id = yd - y_id(k);
+    rho_id = sqrt(ex_id^2 + ey_id^2);
+    theta_d_id = atan2(ey_id, ex_id);
+    e_theta_id = atan2(sin(theta_d_id - theta_id(k)), cos(theta_d_id - theta_id(k)));
+    
+    % Control cinematico ideal
+    u_id = k_rho * rho_id;
+    w_id = k_theta * e_theta_id;
+    
+    % Detener ideal si llega cerca
+    if rho_id < 0.05
+        u_id = 0;
+        w_id = 0;
+    end
+    
+    % ACTUALIZACIÓN DE ESTADOS (Robot ideal)
+    x_id(k+1) = x_id(k) + ti*(u_id * cos(theta_id(k)));
+    y_id(k+1) = y_id(k) + ti*(u_id * sin(theta_id(k)));
+    theta_id(k+1) = theta_id(k) + ti * w_id;
+
+end
+
+rho(end) = rho(end-1);
+e_theta(end) = e_theta(end-1);
+u(end) = u(end-1);
+w(end) = w(end-1);
+vD(end) = vD(end-1);
+vI(end) = vI(end-1);
+thetaDot_D(end) = thetaDot_D(end-1);
+thetaDot_I(end) = thetaDot_I(end-1);
+thetaDot_D_sat(end) = thetaDot_D_sat(end-1);
+thetaDot_I_sat(end) = thetaDot_I_sat(end-1);
+
+% GRAFICA DE TRAYECTORIA 
+figure(1)
+% Plot de la trayectoria real (con saturación)
+plot(x, y, 'b', 'LineWidth', 4) 
+hold on
+% Plot de la trayectoria ideal (sin saturación)
+plot(x_id, y_id, 'm--', 'LineWidth', 3) 
+
+% Puntos clave
+plot(x(1),y(1),'go','MarkerSize',12,'LineWidth',3,'MarkerFaceColor','g')
+plot(xd,yd,'rp','MarkerSize',18,'LineWidth',3,'MarkerFaceColor','r')
+plot(x(end),y(end),'ks','MarkerSize',12,'LineWidth',3,'MarkerFaceColor','k')
+
+xlabel("Posicion X [m]")
+ylabel("Posicion Y [m]")
+title("Comparación de Trayectorias: Con vs Sin Saturación")
+legend("Trayectoria CON saturación", "Trayectoria SIN saturación", "Inicio", "Meta", "Final")
+grid on
+axis equal
+set(gca,'FontSize',16)
+
+% GRAFICAS DE ESTADOS
+figure(2)
+subplot(3,1,1)
+plot(t,x,'LineWidth',3)
+grid on
+ylabel("x [m]")
+title("Posicion en X (Robot saturado)")
+subplot(3,1,2)
+plot(t,y,'LineWidth',3)
+grid on
+ylabel("y [m]")
+title("Posicion en Y (Robot saturado)")
+subplot(3,1,3)
+plot(t,theta,'LineWidth',3)
+grid on
+ylabel("theta [rad]")
+xlabel("Tiempo [s]")
+title("Orientacion del robot")
+
+% GRAFICAS DE ERRORES
+figure(3)
+subplot(2,1,1)
+plot(t,rho,'LineWidth',3)
+grid on
+ylabel("rho [m]")
+title("Distancia a la meta")
+subplot(2,1,2)
+plot(t,e_theta,'LineWidth',3)
+grid on
+ylabel("e theta [rad]")
+xlabel("Tiempo [s]")
+title("Error angular")
+
+% GRAFICAS DE CONTROL
+figure(4)
+subplot(2,1,1)
+plot(t,u,'LineWidth',3)
+grid on
+ylabel("u [m/s]")
+title("Velocidad lineal calculada por el controlador")
+subplot(2,1,2)
+plot(t,w,'LineWidth',3)
+grid on
+ylabel("w [rad/s]")
+xlabel("Tiempo [s]")
+title("Velocidad angular calculada por el controlador")
+
+% GRAFICAS DE VELOCIDADES DE RUEDAS
+figure(5)
+subplot(2,1,1)
+plot(t,thetaDot_D,t, thetaDot_D_sat, 'LineWidth',3)
+grid on
+ylabel("$\dot{\theta}_D$ [rad/s]", Interpreter="latex")
+title("Velocidad angular rueda derecha")
+legend("Sin saturar", "Con saturación")
+set(gca,'FontSize',16)
+subplot(2,1,2)
+plot(t,thetaDot_I,t,thetaDot_I_sat,'LineWidth',3)
+grid on
+ylabel("$\dot{\theta}_I$ [rad/s]", Interpreter="latex") % Corregí el subíndice a I
+xlabel("Tiempo [s]")
+title("Velocidad angular rueda izquierda")
+legend("Sin saturar", "Con saturación")
+set(gca,'FontSize',16)
+
+% GRAFICA DE ANIMACION DEL ROBOT
+
+figure(6)
+set(gcf, 'Position', [100, 100, 800, 600]); % Ajustar el tamaño de la ventana
+
+% Nombre del archivo GIF a generar
+nombre_gif = 'control_cinematico.gif';
+
+% Trazar la trayectoria completa y la meta como fondo
+plot(x, y, 'b--', 'LineWidth', 1.5); hold on;
+plot(xd, yd, 'rp', 'MarkerSize', 18, 'LineWidth', 2, 'MarkerFaceColor', 'r');
+plot(x(1), y(1), 'go', 'MarkerSize', 10, 'MarkerFaceColor', 'g');
+
+% Configuración visual de la gráfica
+xlabel('Posición en X [m]', 'FontSize', 14);
+ylabel('Posición en Y [m]', 'FontSize', 14);
+title('Animación del movimiento del robot diferencial', 'FontSize', 16);
+grid on;
+axis equal;
+
+% Ajustar los límites de los ejes dinámicamente con un pequeño margen
+margen = 0.5;
+xlim([min([x, xd]) - margen, max([x, xd]) + margen]);
+ylim([min([y, yd]) - margen, max([y, yd]) + margen]);
+
+% Dimensiones del robot para la animación
+longitud_robot = 0.2;  % Largo del chasis [m]
+ancho_robot = L;       % Ancho del chasis [m]
+
+% Inicializar los objetos gráficos del robot
+h_chasis = patch(0, 0, [0.8 0.8 0.8], 'EdgeColor', 'k', 'LineWidth', 1.5);
+h_direccion = plot(0, 0, 'r', 'LineWidth', 3);
+h_centro = plot(0, 0, 'ko', 'MarkerFaceColor', 'k', 'MarkerSize', 6);
+
+% Factor de salto para la animación
+salto_animacion = 15; 
+
+for k = 1:salto_animacion:length(t)
+    
+    % Coordenadas de los vértices del rectángulo (robot) centrados en (0,0)
+    dx = longitud_robot / 2;
+    dy = ancho_robot / 2;
+    vertices = [ dx,  dy;
+                -dx,  dy;
+                -dx, -dy;
+                 dx, -dy]';
+             
+    % Matriz de rotación en base al ángulo theta actual
+    R = [cos(theta(k)), -sin(theta(k));
+         sin(theta(k)),  cos(theta(k))];
+     
+    % Rotar y trasladar los vértices a la posición actual x(k), y(k)
+    vertices_rotados = R * vertices;
+    vertices_x = vertices_rotados(1, :) + x(k);
+    vertices_y = vertices_rotados(2, :) + y(k);
+    
+    % Calcular la línea que indica el frente del robot (vector director)
+    dir_x = [x(k), x(k) + (dx + 0.05) * cos(theta(k))];
+    dir_y = [y(k), y(k) + (dx + 0.05) * sin(theta(k))];
+    
+    % Actualizar los datos de los objetos gráficos
+    set(h_chasis, 'XData', vertices_x, 'YData', vertices_y);
+    set(h_direccion, 'XData', dir_x, 'YData', dir_y);
+    set(h_centro, 'XData', x(k), 'YData', y(k));
+    
+    % Forzar la actualización de la gráfica
+    drawnow;
+    
+    % ---------------------------------------------------------------------
+    % CAPTURA DE FOTOGRAMAS PARA EL GIF
+    % ---------------------------------------------------------------------
+    frame = getframe(gcf); 
+    im = frame2im(frame); 
+    [imind, cm] = rgb2ind(im, 256); 
+    
+    % Escribir en el archivo GIF
+    if k == 1
+        % Primer frame: crea el archivo y lo configura para bucle infinito
+        imwrite(imind, cm, nombre_gif, 'gif', 'Loopcount', inf, 'DelayTime', 0.05);
+    else
+        % Frames siguientes: los anexa (append) al archivo existente
+        imwrite(imind, cm, nombre_gif, 'gif', 'WriteMode', 'append', 'DelayTime', 0.05);
+    end
+end
+
+% Asegurar que el robot se dibuje en la posición final exacta
+vertices_rotados = [cos(theta(end)), -sin(theta(end)); sin(theta(end)),  cos(theta(end))] * vertices;
+set(h_chasis, 'XData', vertices_rotados(1, :) + x(end), 'YData', vertices_rotados(2, :) + y(end));
+set(h_direccion, 'XData', [x(end), x(end) + (dx + 0.05) * cos(theta(end))], 'YData', [y(end), y(end) + (dx + 0.05) * sin(theta(end))]);
+set(h_centro, 'XData', x(end), 'YData', y(end));
+drawnow;
+
+% Capturar y agregar el fotograma final (con un DelayTime mayor para hacer una pausa al terminar)
+frame = getframe(gcf); 
+im = frame2im(frame); 
+[imind, cm] = rgb2ind(im, 256); 
+imwrite(imind, cm, nombre_gif, 'gif', 'WriteMode', 'append', 'DelayTime', 1.0);
