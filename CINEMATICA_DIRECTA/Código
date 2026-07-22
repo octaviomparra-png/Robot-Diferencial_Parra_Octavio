@@ -1,1 +1,164 @@
-a
+clc; clear; close all;
+
+% 1. Parámetros físicos del robot
+r = 0.03;  % Radio de las ruedas (metros)
+L = 0.18;  % Distancia entre las dos ruedas (metros)
+
+% 2. Parámetros de simulación
+dt = 0.1;        % Paso de integración (segundos)
+t_total = 5.0;   % Tiempo total de movimiento (segundos)
+t = 0:dt:t_total;
+N = length(t);
+
+% 3. Condiciones iniciales
+x = zeros(1, N);
+y = zeros(1, N);
+theta = zeros(1, N);
+
+x(1) = 0;       % Posición inicial en x (m)
+y(1) = 0;       % Posición inicial en y (m)
+theta(1) = 0;   % Orientación inicial (radianes)
+
+% 4. Entradas del sistema (Velocidades angulares en rad/s)
+w_R = 10; % Rueda derecha
+w_L = 2; % Rueda izquierda
+
+% CÁLCULO DE CINEMÁTICA
+
+% Velocidades lineales de cada rueda individual (v = w * r)
+v_R = w_R * r;
+v_L = w_L * r;
+
+% Velocidad lineal (u) y angular (w) del centro del robot
+u = (v_R + v_L) / 2;
+w = (v_R - v_L) / L;
+
+% Radio de giro (R)
+if w == 0
+    R = inf; % Si no hay rotación, el radio es infinito (línea recta)
+else
+    R = u / w;
+end
+
+% Integración numérica (Método de Euler) para predecir la posición
+for i = 1:(N-1)
+    % Actualización de la postura
+    theta(i+1) = theta(i) + w * dt;
+    x(i+1) = x(i) + u * cos(theta(i)) * dt;
+    y(i+1) = y(i) + u * sin(theta(i)) * dt;
+end
+
+% Extraer los valores finales
+pos_final_x = x(end);
+pos_final_y = y(end);
+theta_final = theta(end);
+
+% Imprimir resultados en consola
+fprintf('--- Resultados Cinemáticos ---\n');
+fprintf('Velocidad Lineal (u):  %.3f m/s\n', u);
+fprintf('Velocidad Angular (w): %.3f rad/s\n', w);
+fprintf('Radio de Giro (R):     %.3f m\n', R);
+fprintf('Posición Final (x,y):  (%.3f, %.3f) m\n', pos_final_x, pos_final_y);
+fprintf('Orientación Final:     %.3f rad (%.1f grados)\n', theta_final, rad2deg(theta_final));
+
+% Graficar la trayectoria
+figure;
+plot(x, y, 'b-', 'LineWidth', 2);
+hold on;
+plot(x(1), y(1), 'go', 'MarkerSize', 8, 'MarkerFaceColor', 'g'); % Punto de inicio
+plot(x(end), y(end), 'ro', 'MarkerSize', 8, 'MarkerFaceColor', 'r'); % Punto final
+grid on;
+axis equal;
+xlabel('Posición X (m)');
+ylabel('Posición Y (m)');
+title('Trayectoria del Robot');
+legend('Ruta', 'Inicio', 'Fin', 'Location', 'Best');
+
+% ANIMACIÓN DEL ROBOT (FIGURA 2)
+
+% Crear la figura con fondo oscuro al estilo de image_98fd17.png
+fig2 = figure('Name', 'Animación del Robot', 'Color', [0.1, 0.1, 0.1]);
+
+% Parámetros visuales del dibujo del robot
+robot_length = 0.4;  % Largo del chasis
+robot_width = 0.25;  % Ancho del chasis
+wheel_length = 0.15; % Largo de las ruedas
+wheel_width = 0.05;  % Ancho de las ruedas
+
+% Definir los vértices del chasis (centrado en el origen)
+body_x = [-robot_length/2, robot_length/2, robot_length/2, -robot_length/2];
+body_y = [-robot_width/2, -robot_width/2, robot_width/2, robot_width/2];
+
+% Definir los vértices de una rueda (centrada en el origen)
+wheel_x = [-wheel_length/2, wheel_length/2, wheel_length/2, -wheel_length/2];
+wheel_y = [-wheel_width/2, -wheel_width/2, wheel_width/2, wheel_width/2];
+
+% Configuración de los ejes y el entorno gráfico
+ax = gca;
+ax.Color = [0.1, 0.1, 0.1];        % Fondo del eje oscuro
+ax.XColor = [0.8, 0.8, 0.8];       % Color de texto y rejilla X
+ax.YColor = [0.8, 0.8, 0.8];       % Color de texto y rejilla Y
+grid on;
+hold on;
+axis equal;
+
+% Ajustar dinámicamente los límites de la ventana
+margen = 1.0;
+xlim([min(x)-margen, max(x)+margen]);
+ylim([min(y)-margen, max(y)+margen]);
+
+% Etiquetas y título
+title('MOVIMIENTO DEL ROBOT DIFERENCIAL', 'Color', 'w', 'FontSize', 12, 'FontWeight', 'bold');
+xlabel('POSICION EN X [m]', 'Color', 'w');
+ylabel('POSICION EN Y [m]', 'Color', 'w');
+
+
+% INICIALIZACIÓN DE LOS OBJETOS GRÁFICOS
+
+% Línea de la trayectoria (azul)
+trayectoria_plot = plot(x(1), y(1), 'Color', [0, 0.5, 0.8], 'LineWidth', 2);
+
+% Parches (polígonos) para el robot
+chasis_patch = patch(body_x, body_y, [0.8, 0.8, 0.8], 'EdgeColor', 'k');
+ruedaD_patch = patch(wheel_x, wheel_y - L/2, [0.2, 0.2, 0.2], 'EdgeColor', [0.5, 0.5, 0.5]);
+ruedaI_patch = patch(wheel_x, wheel_y + L/2, [0.2, 0.2, 0.2], 'EdgeColor', [0.5, 0.5, 0.5]);
+
+% Punto central y flecha de dirección (roja)
+centro_plot = plot(x(1), y(1), 'ko', 'MarkerFaceColor', 'k', 'MarkerSize', 6);
+flecha_dir = quiver(x(1), y(1), cos(theta(1)), sin(theta(1)), 0.3, 'r', 'LineWidth', 2, 'MaxHeadSize', 1.5);
+
+% BUCLE DE ANIMACIÓN
+
+for i = 1:N
+    % 1. Actualizar la línea de la trayectoria trazada hasta el momento
+    set(trayectoria_plot, 'XData', x(1:i), 'YData', y(1:i));
+    
+    % 2. Crear matriz de rotación 2D para el ángulo actual
+    R_mat = [cos(theta(i)), -sin(theta(i)); 
+             sin(theta(i)),  cos(theta(i))];
+    
+    % 3. Rotar y trasladar los vértices del chasis
+    body_rot = R_mat * [body_x; body_y];
+    set(chasis_patch, 'XData', body_rot(1,:) + x(i), 'YData', body_rot(2,:) + y(i));
+    
+    % 4. Rotar y trasladar la rueda derecha (R)
+    wheel_R_orig = [wheel_x; wheel_y - L/2];
+    wheel_R_rot = R_mat * wheel_R_orig;
+    set(ruedaD_patch, 'XData', wheel_R_rot(1,:) + x(i), 'YData', wheel_R_rot(2,:) + y(i));
+    
+    % 5. Rotar y trasladar la rueda izquierda (L)
+    wheel_L_orig = [wheel_x; wheel_y + L/2];
+    wheel_L_rot = R_mat * wheel_L_orig;
+    set(ruedaI_patch, 'XData', wheel_L_rot(1,:) + x(i), 'YData', wheel_L_rot(2,:) + y(i));
+    
+    % 6. Actualizar el punto central y la flecha del vector de orientación
+    set(centro_plot, 'XData', x(i), 'YData', y(i));
+    set(flecha_dir, 'XData', x(i), 'YData', y(i), ...
+                    'UData', 0.3*cos(theta(i)), 'VData', 0.3*sin(theta(i)));
+    
+    % Forzar la actualización del gráfico
+    drawnow;
+    
+    % (Opcional) Pausa para hacer la animación más realista
+    % pause(0.01); 
+end
