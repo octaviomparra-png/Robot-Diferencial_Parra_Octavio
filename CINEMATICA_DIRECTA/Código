@@ -5,8 +5,8 @@ r = 0.03;  % Radio de las ruedas (metros)
 L = 0.18;  % Distancia entre las dos ruedas (metros)
 
 % 2. Parámetros de simulación
-dt = 0.1;        % Paso de integración (segundos)
-t_total = 5.0;   % Tiempo total de movimiento (segundos)
+dt = 0.01;        % Paso de integración (segundos)
+t_total = 10.0;   % Tiempo total de movimiento (segundos)
 t = 0:dt:t_total;
 N = length(t);
 
