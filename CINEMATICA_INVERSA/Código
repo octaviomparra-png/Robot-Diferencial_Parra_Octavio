@@ -82,7 +82,7 @@ plot(t, u_des, 'k-', 'LineWidth', 2);
 grid on;
 xlabel("Tiempo [s]"); ylabel("Velocidad lineal u [m/s]");
 title("VELOCIDAD LINEAL");
-ylim([0, max(u_des)*1.5]); % Ajuste de escala para mejor visualización
+ylim([0, max(u_des)*1.5]); 
 saveas(gcf, 'velocidad_lineal.png');
 
 % 5. Velocidad angular
@@ -91,7 +91,7 @@ plot(t, w_des, 'm-', 'LineWidth', 2);
 grid on;
 xlabel("Tiempo [s]"); ylabel("Velocidad angular w [rad/s]");
 title("VELOCIDAD ANGULAR");
-ylim([0, max(w_des)*1.5]); % Ajuste de escala para mejor visualización
+ylim([0, max(w_des)*1.5]); 
 saveas(gcf, 'velocidad_angular.png');
 
 % 6. Velocidades de ruedas
@@ -102,7 +102,7 @@ grid on;
 legend('\dot{\theta}_D (Rueda Der)', '\dot{\theta}_I (Rueda Izq)', 'Location', 'Best');
 xlabel("Tiempo [s]"); ylabel("Velocidad angular de ruedas [rad/s]");
 title("VELOCIDADES DE LAS RUEDAS");
-ylim([min(theta_dot_I)*0.8, max(theta_dot_D)*1.2]); % Ajuste de escala
+ylim([min(theta_dot_I)*0.8, max(theta_dot_D)*1.2]); 
 saveas(gcf, 'velocidades_ruedas.png');
 
 
