@@ -46,9 +46,10 @@ thetaDot_I_sat = zeros(1,length(t));
 % SIMULACION
 for k = 1:length(t)-1
     
+    % =================================================================
     % 1. CÁLCULOS DEL ROBOT REAL (CON SATURACIÓN)
-
-% ERRORES DE POSICION
+    % =================================================================
+    % ERRORES DE POSICION
     ex = xd - x(k);
     ey = yd - y(k);
     % Distancia hacia la meta
@@ -94,9 +95,10 @@ for k = 1:length(t)-1
     theta(k+1) = theta(k) + w_real(k)*ti;
 
 
-  % 2. CÁLCULOS DEL ROBOT IDEAL (SIN SATURACIÓN)
-
-  % Errores de posicion
+    % =================================================================
+    % 2. CÁLCULOS DEL ROBOT IDEAL (SIN SATURACIÓN)
+    % =================================================================
+    % Errores de posicion
     ex_id = xd - x_id(k);
     ey_id = yd - y_id(k);
     rho_id = sqrt(ex_id^2 + ey_id^2);
@@ -120,6 +122,7 @@ for k = 1:length(t)-1
 
 end
 
+% Mantener el último valor para gráficas
 rho(end) = rho(end-1);
 e_theta(end) = e_theta(end-1);
 u(end) = u(end-1);
@@ -131,7 +134,8 @@ thetaDot_I(end) = thetaDot_I(end-1);
 thetaDot_D_sat(end) = thetaDot_D_sat(end-1);
 thetaDot_I_sat(end) = thetaDot_I_sat(end-1);
 
-% GRAFICA DE TRAYECTORIA 
+%%
+% GRAFICA DE TRAYECTORIA (Modificada para el punto 8)
 figure(1)
 % Plot de la trayectoria real (con saturación)
 plot(x, y, 'b', 'LineWidth', 4) 
@@ -217,8 +221,9 @@ title("Velocidad angular rueda izquierda")
 legend("Sin saturar", "Con saturación")
 set(gca,'FontSize',16)
 
-% GRAFICA DE ANIMACION DEL ROBOT
-
+% =========================================================================
+% GRAFICA DE ANIMACION DEL ROBOT Y CAPTURA DE GIF (Figura 6)
+% =========================================================================
 figure(6)
 set(gcf, 'Position', [100, 100, 800, 600]); % Ajustar el tamaño de la ventana
 
@@ -314,3 +319,104 @@ frame = getframe(gcf);
 im = frame2im(frame); 
 [imind, cm] = rgb2ind(im, 256); 
 imwrite(imind, cm, nombre_gif, 'gif', 'WriteMode', 'append', 'DelayTime', 1.0);
+
+
+% SIMULACION
+for k = 1:length(t)-1
+    
+    % --- 1. ROBOT CON SATURACIÓN ---
+    ex = xd - x(k); ey = yd - y(k);
+    rho(k) = sqrt(ex^2 + ey^2);
+    theta_d = atan2(ey,ex);
+    e_theta(k) = atan2(sin(theta_d - theta(k)), cos(theta_d - theta(k)));
+    
+    u(k) = k_rho*rho(k);
+    w(k) = k_theta*e_theta(k);
+    
+    if rho(k) < 0.05
+        u(k) = 0; w(k) = 0;
+    end
+
+    thetaDot_D(k) = (u(k) + (L/2)*w(k))/r;
+    thetaDot_I(k) = (u(k) - (L/2)*w(k))/r;
+    thetaDot_max = 30;   
+    
+    valor_maximo(k) = max(abs([thetaDot_D(k), thetaDot_I(k)]));
+    if valor_maximo(k) > thetaDot_max
+        alpha = thetaDot_max/valor_maximo(k);
+        thetaDot_D_sat(k) = alpha*thetaDot_D(k);
+        thetaDot_I_sat(k) = alpha*thetaDot_I(k);
+    else
+        thetaDot_D_sat(k) = thetaDot_D(k);
+        thetaDot_I_sat(k) = thetaDot_I(k);
+    end
+    
+    u_real = (r/2)*(thetaDot_D_sat(k) + thetaDot_I_sat(k));
+    w_real = (r/L)*(thetaDot_D_sat(k) - thetaDot_I_sat(k));
+    
+    x(k+1) = x(k) + u_real*cos(theta(k))*ti;
+    y(k+1) = y(k) + u_real*sin(theta(k))*ti;
+    theta(k+1) = theta(k) + w_real*ti;
+
+
+    % --- 2. ROBOT IDEAL (SIN SATURACIÓN) ---
+    ex_id = xd - x_id(k); ey_id = yd - y_id(k);
+    rho_id_array(k) = sqrt(ex_id^2 + ey_id^2);
+    theta_d_id = atan2(ey_id, ex_id);
+    e_theta_id = atan2(sin(theta_d_id - theta_id(k)), cos(theta_d_id - theta_id(k)));
+    
+    u_id = k_rho * rho_id_array(k);
+    w_id = k_theta * e_theta_id;
+    
+    if rho_id_array(k) < 0.05
+        u_id = 0; w_id = 0;
+    end
+    
+    % Velocidades de rueda ideales
+    thetaDot_D_id(k) = (u_id + (L/2)*w_id)/r;
+    thetaDot_I_id(k) = (u_id - (L/2)*w_id)/r;
+    
+    x_id(k+1) = x_id(k) + ti*(u_id * cos(theta_id(k)));
+    y_id(k+1) = y_id(k) + ti*(u_id * sin(theta_id(k)));
+    theta_id(k+1) = theta_id(k) + ti * w_id;
+end
+
+% Ultimos valores
+rho(end) = rho(end-1); rho_id_array(end) = rho_id_array(end-1);
+thetaDot_D_id(end) = thetaDot_D_id(end-1); thetaDot_I_id(end) = thetaDot_I_id(end-1);
+thetaDot_D_sat(end) = thetaDot_D_sat(end-1); thetaDot_I_sat(end) = thetaDot_I_sat(end-1);
+
+% =========================================================================
+% CÁLCULO DE MÉTRICAS PARA LA TABLA
+% =========================================================================
+
+% 1. Error final (m)
+error_final_sat = rho(end);
+error_final_id = rho_id_array(end);
+
+% 2. Tiempo de llegada (s) - Cuando rho baja de 0.05m
+idx_sat = find(rho < 0.05, 1);
+tiempo_sat = t(idx_sat); 
+idx_id = find(rho_id_array < 0.05, 1);
+tiempo_id = t(idx_id); 
+
+% 3. Velocidades máximas de las ruedas (rad/s)
+wD_max_sat = max(abs(thetaDot_D_sat));
+wI_max_sat = max(abs(thetaDot_I_sat));
+wD_max_id = max(abs(thetaDot_D_id));
+wI_max_id = max(abs(thetaDot_I_id));
+
+% 4. Distancia recorrida (m) - Sumatoria de distancias entre puntos
+distancia_sat = sum(sqrt(diff(x).^2 + diff(y).^2));
+distancia_id = sum(sqrt(diff(x_id).^2 + diff(y_id).^2));
+
+% IMPRIMIR RESULTADOS EN CONSOLA
+fprintf('\n================ RESULTADOS PARA LA TABLA ================\n');
+fprintf('Indicador\t\t\tSin saturacion\t\tCon saturacion\n');
+fprintf('----------------------------------------------------------\n');
+fprintf('Error final (m)\t\t\t%.4f\t\t\t%.4f\n', error_final_id, error_final_sat);
+fprintf('Tiempo de llegada (s)\t\t%.2f\t\t\t%.2f\n', tiempo_id, tiempo_sat);
+fprintf('ThetaDot_D maxima (rad/s)\t%.2f\t\t\t%.2f\n', wD_max_id, wD_max_sat);
+fprintf('ThetaDot_I maxima (rad/s)\t%.2f\t\t\t%.2f\n', wI_max_id, wI_max_sat);
+fprintf('Distancia recorrida (m)\t\t%.4f\t\t\t%.4f\n', distancia_id, distancia_sat);
+fprintf('==========================================================\n\n');
