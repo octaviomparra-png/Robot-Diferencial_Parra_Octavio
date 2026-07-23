@@ -45,11 +45,9 @@ for k = 1:length(t)-1
     theta(k+1) = theta(k) + ti * w_des(k);
 end
 
-% =========================================================================
 % GENERACIÓN, VISUALIZACIÓN Y GUARDADO DE GRÁFICAS
-% =========================================================================
 
-% 1. Trayectoria deseada -> trayectoria_deseada.png
+% 1. Trayectoria deseada
 figure('Name', 'Trayectoria Deseada');
 plot(x_d, y_d, 'b--', 'LineWidth', 2);
 grid on;
@@ -58,7 +56,7 @@ title("TRAYECTORIA DESEADA (CIRCULAR)");
 axis equal;
 saveas(gcf, 'trayectoria_deseada.png');
 
-% 2. Trayectoria obtenida -> trayectoria_obtenida.png
+% 2. Trayectoria obtenida
 figure('Name', 'Trayectoria Obtenida');
 plot(x, y, 'r-', 'LineWidth', 2);
 grid on;
@@ -67,7 +65,7 @@ title("TRAYECTORIA OBTENIDA POR EL ROBOT");
 axis equal;
 saveas(gcf, 'trayectoria_obtenida.png');
 
-% 3. Comparación de trayectorias -> comparacion_trayectorias.png
+% 3. Comparación de trayectorias
 figure('Name', 'Comparación de Trayectorias');
 plot(x_d, y_d, 'b--', 'LineWidth', 2); hold on;
 plot(x, y, 'r-', 'LineWidth', 2);
@@ -78,7 +76,7 @@ title("COMPARACIÓN DE TRAYECTORIAS");
 axis equal;
 saveas(gcf, 'comparacion_trayectorias.png');
 
-% 4. Velocidad lineal -> velocidad_lineal.png
+% 4. Velocidad lineal
 figure('Name', 'Velocidad Lineal');
 plot(t, u_des, 'k-', 'LineWidth', 2);
 grid on;
@@ -87,7 +85,7 @@ title("VELOCIDAD LINEAL");
 ylim([0, max(u_des)*1.5]); % Ajuste de escala para mejor visualización
 saveas(gcf, 'velocidad_lineal.png');
 
-% 5. Velocidad angular -> velocidad_angular.png
+% 5. Velocidad angular
 figure('Name', 'Velocidad Angular');
 plot(t, w_des, 'm-', 'LineWidth', 2);
 grid on;
@@ -96,7 +94,7 @@ title("VELOCIDAD ANGULAR");
 ylim([0, max(w_des)*1.5]); % Ajuste de escala para mejor visualización
 saveas(gcf, 'velocidad_angular.png');
 
-% 6. Velocidades de ruedas -> velocidades_ruedas.png
+% 6. Velocidades de ruedas
 figure('Name', 'Velocidades de las Ruedas');
 plot(t, theta_dot_D, 'g-', 'LineWidth', 1.5); hold on;
 plot(t, theta_dot_I, 'b-', 'LineWidth', 1.5);
